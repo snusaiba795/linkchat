@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LinkChat — Private Chat</title>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root{
+    --accent:#2563eb;
+    --accent-soft:#93c5fd;
+    --accent-pale:#eff6ff;
+    --text:#111827;
+    --text-mid:#374151;
+    --text-muted:#6b7280;
+    --bg:#f8fafc;
+    --surface:#ffffff;
+    --border:#e5e7eb;
+    --bubble-me:#2563eb;
+    --bubble-them:#ffffff;
+    --text-me:#ffffff;
+    --text-them:#111827;
+    --shadow:0 4px 40px rgba(37,99,235,.08);
+  }
+
+  body.dark{
+    --accent:#3b82f6;
+    --accent-soft:#1d4ed8;
+    --accent-pale:#111827;
+    --text:#f9fafb;
+    --text-mid:#d1d5db;
+    --text-muted:#9ca3af;
+    --bg:#0b1220;
+    --surface:#111827;
+    --border:#1f2937;
+    --bubble-me:#2563eb;
+    --bubble-them:#182131;
+    --text-me:#ffffff;
+    --text-them:#f9fafb;
+    --shadow:0 4px 40px rgba(0,0,0,.35);
+  }
+
+  body{
+    font-family:'DM Sans',sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+
+  .screen{
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    padding:2rem;
+  }
+  .screen.active{ display:flex; }
+
+  #landing{
+    background:linear-gradient(160deg,#f8fbff 0%,#f8fafc 60%);
+  }
+  body.dark #landing{
+    background:linear-gradient(160deg,#0f172a 0%,#0b1220 60%);
+  }
+
+  .logo{
+    font-family:'DM Serif Display',serif;
+    font-size:2.8rem;
+    color:var(--accent);
+    letter-spacing:-1px;
+    margin-bottom:.25rem;
+  }
+  .logo span{ font-style:italic; }
+
+  .tagline{
+    color:var(--text-muted);
+    font-size:1rem;
+    font-weight:300;
+    margin-bottom:3rem;
+    letter-spacing:.2px;
+    text-align:center;
+  }
+
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:2rem 2.5rem;
+    width:100%;
+    max-width:460px;
+    box-shadow:var(--shadow);
+  }
+
+  .card h2{
+    font-family:'DM Serif Display',serif;
+    font-size:1.4rem;
+    color:var(--text);
+    margin-bottom:.5rem;
+  }
+
+  .card p{
+    font-size:.88rem;
+    color:var(--text-muted);
+    margin-bottom:1.2rem;
+    line-height:1.6;
+  }
+
+  .divider{
+    display:flex;
+    align-items:center;
+    gap:1rem;
+    margin:1.5rem 0;
+  }
+  .divider::before,.divider::after{
+    content:'';
+    flex:1;
+    height:1px;
+    background:var(--border);
+  }
+  .divider span{
+    font-size:.75rem;
+    color:var(--text-muted);
+  }
+
+  .btn{
+    width:100%;
+    padding:.85rem 1.5rem;
+    border-radius:50px;
+    border:none;
+    cursor:pointer;
+    font-family:'DM Sans',sans-serif;
+    font-size:.95rem;
+    font-weight:500;
+    transition:all .2s;
+  }
+  .btn-primary{
+    background:var(--accent);
+    color:#fff;
+  }
+  .btn-primary:hover{
+    transform:translateY(-1px);
+    box-shadow:0 6px 20px rgba(37,99,235,.25);
+  }
+  .btn-outline{
+    background:transparent;
+    color:var(--accent);
+    border:1.5px solid var(--accent-soft);
+  }
+  .btn-outline:hover{
+    background:var(--accent-pale);
+  }
+
+  .input-row{
+    display:flex;
+    gap:.5rem;
+    margin-bottom:.75rem;
+  }
+
+  input[type=text]{
+    flex:1;
+    padding:.75rem 1rem;
+    border:1.5px solid var(--border);
+    border-radius:50px;
+    font-family:'DM Sans',sans-serif;
+    font-size:.9rem;
+    outline:none;
+    transition:border-color .2s;
+    background:var(--bg);
+    color:var(--text);
+  }
+  input[type=text]:focus{ border-color:var(--accent-soft); }
+
+  .conn-info{
+    background:var(--accent-pale);
+    border:1px solid var(--accent-soft);
+    border-radius:14px;
+    padding:1rem 1.25rem;
+    margin-bottom:1.5rem;
+    width:100%;
+    max-width:460px;
+  }
+
+  .conn-info h3{
+    font-size:.8rem;
+    color:var(--text-muted);
+    text-transform:uppercase;
+    letter-spacing:.5px;
+    margin-bottom:.4rem;
+  }
+
+  .link-row{
+    display:flex;
+    align-items:center;
+    gap:.5rem;
+  }
+
+  .link-text{
+    flex:1;
+    font-size:.78rem;
+    color:var(--text-mid);
+    word-break:break-all;
+    line-height:1.4;
+  }
+
+  .copy-btn{
+    flex-shrink:0;
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    border-radius:50px;
+    padding:.35rem .85rem;
+    font-size:.78rem;
+    cursor:pointer;
+    font-family:'DM Sans',sans-serif;
+  }
+
+  #chat{
+    padding:0;
+    min-height:100vh;
+    display:none;
+    flex-direction:column;
+    background:var(--bg);
+  }
+  #chat.active{ display:flex; }
+
+  .chat-header{
+    background:var(--surface);
+    border-bottom:1px solid var(--border);
+    padding:.85rem 1.25rem;
+    display:flex;
+    align-items:center;
+    gap:.85rem;
+    position:sticky;
+    top:0;
+    z-index:10;
+  }
+
+  .avatar{
+    width:42px;
+    height:42px;
+    border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),#60a5fa);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1rem;
+    font-weight:700;
+    color:#fff;
+    flex-shrink:0;
+  }
+
+  .chat-name{
+    font-family:'DM Serif Display',serif;
+    font-size:1.08rem;
+  }
+
+  .status-dot{
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:#22c55e;
+    display:inline-block;
+    margin-left:.4rem;
+  }
+  .status-dot.off{ background:#9ca3af; }
+
+  .header-actions{
+    margin-left:auto;
+    display:flex;
+    gap:.35rem;
+  }
+
+  .icon-btn{
+    background:none;
+    border:none;
+    cursor:pointer;
+    padding:.45rem;
+    border-radius:50%;
+    color:var(--text-muted);
+    font-size:1rem;
+    transition:background .2s;
+  }
+  .icon-btn:hover{
+    background:var(--accent-pale);
+    color:var(--accent);
+  }
+
+  .messages{
+    flex:1;
+    overflow-y:auto;
+    padding:1rem;
+    display:flex;
+    flex-direction:column;
+    gap:.75rem;
+  }
+
+  .msg-wrap{
+    display:flex;
+    flex-direction:column;
+    max-width:78%;
+  }
+  .msg-wrap.me{
+    align-self:flex-end;
+    align-items:flex-end;
+  }
+  .msg-wrap.them{
+    align-self:flex-start;
+    align-items:flex-start;
+  }
+
+  .bubble{
+    padding:.7rem 1rem;
+    border-radius:18px;
+    font-size:.92rem;
+    line-height:1.5;
+    word-break:break-word;
+    position:relative;
+  }
+
+  .me .bubble{
+    background:var(--bubble-me);
+    color:var(--text-me);
+    border-bottom-right-radius:4px;
+  }
+
+  .them .bubble{
+    background:var(--bubble-them);
+    color:var(--text-them);
+    border:1px solid var(--border);
+    border-bottom-left-radius:4px;
+  }
+
+  .msg-meta{
+    display:flex;
+    align-items:center;
+    gap:.35rem;
+    font-size:.68rem;
+    color:var(--text-muted);
+    margin-top:.22rem;
+    padding:0 .2rem;
+  }
+
+  .msg-wrap.me .msg-meta{
+    justify-content:flex-end;
+  }
+
+  .msg-status{
+    font-weight:700;
+    letter-spacing:.2px;
+  }
+
+  .bubble img{
+    max-width:220px;
+    max-height:220px;
+    border-radius:10px;
+    display:block;
+    cursor:pointer;
+  }
+
+  .bubble video{
+    max-width:220px;
+    border-radius:10px;
+    display:block;
+  }
+
+  .system-msg{
+    text-align:center;
+    font-size:.75rem;
+    color:var(--text-muted);
+    padding:.3rem 0;
+  }
+
+  .date-divider{
+    text-align:center;
+    font-size:.72rem;
+    color:var(--text-muted);
+    margin:.3rem 0;
+  }
+
+  .typing-indicator{
+    display:none;
+    align-self:flex-start;
+    padding:.6rem 1rem;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:18px;
+    border-bottom-left-radius:4px;
+  }
+  .typing-indicator.visible{
+    display:flex;
+    gap:4px;
+    align-items:center;
+  }
+
+  .typing-dot{
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    background:var(--text-muted);
+    animation:typing .9s infinite;
+  }
+  .typing-dot:nth-child(2){ animation-delay:.2s; }
+  .typing-dot:nth-child(3){ animation-delay:.4s; }
+
+  @keyframes typing{
+    0%,60%,100%{ transform:translateY(0); }
+    30%{ transform:translateY(-5px); }
+  }
+
+  .input-area{
+    background:var(--surface);
+    border-top:1px solid var(--border);
+    padding:.75rem 1rem;
+    display:flex;
+    align-items:center;
+    gap:.5rem;
+    position:sticky;
+    bottom:0;
+  }
+
+  .attach-btn{
+    background:none;
+    border:none;
+    cursor:pointer;
+    color:var(--text-muted);
+    font-size:1rem;
+    padding:.35rem;
+    border-radius:50%;
+    transition:color .2s;
+  }
+  .attach-btn:hover{ color:var(--accent); }
+
+  #file-input{ display:none; }
+
+  .msg-input{
+    flex:1;
+    border:1.5px solid var(--border);
+    border-radius:50px;
+    padding:.65rem 1.1rem;
+    font-family:'DM Sans',sans-serif;
+    font-size:.92rem;
+    outline:none;
+    background:var(--bg);
+    color:var(--text);
+    resize:none;
+    max-height:100px;
+    overflow-y:auto;
+  }
+  .msg-input:focus{ border-color:var(--accent-soft); }
+
+  .send-btn{
+    width:40px;
+    height:40px;
+    border-radius:50%;
+    background:var(--accent);
+    border:none;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    transition:all .2s;
+  }
+  .send-btn:hover{
+    transform:scale(1.05);
+  }
+  .send-btn:disabled{
+    opacity:.45;
+    cursor:not-allowed;
+    transform:none;
+  }
+  .send-btn svg{
+    width:18px;
+    height:18px;
+    fill:#fff;
+  }
+
+  .lightbox{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.85);
+    z-index:100;
+    align-items:center;
+    justify-content:center;
+  }
+  .lightbox.open{ display:flex; }
+  .lightbox img{
+    max-width:90vw;
+    max-height:90vh;
+    border-radius:12px;
+  }
+  .lightbox-close{
+    position:fixed;
+    top:1rem;
+    right:1rem;
+    background:rgba(255,255,255,.15);
+    border:none;
+    color:#fff;
+    font-size:1.5rem;
+    width:40px;
+    height:40px;
+    border-radius:50%;
+    cursor:pointer;
+  }
+
+  .notif-banner{
+    position:fixed;
+    top:1rem;
+    left:50%;
+    transform:translateX(-50%);
+    background:var(--text);
+    color:#fff;
+    padding:.55rem 1.25rem;
+    border-radius:50px;
+    font-size:.82rem;
+    z-index:50;
+    opacity:0;
+    transition:opacity .3s;
+    pointer-events:none;
+  }
+  .notif-banner.show{ opacity:1; }
+
+  .empty-state{
+    text-align:center;
+    padding:2rem 1rem;
+    color:var(--text-muted);
+    font-size:.88rem;
+    line-height:1.7;
+  }
+
+  .mini-settings{
+    display:grid;
+    gap:.65rem;
+    margin-bottom:1rem;
+  }
+
+  .mini-settings input{
+    width:100%;
+  }
+
+  @media(max-width:480px){
+    .card{ padding:1.5rem 1.25rem; }
+    .bubble img,.bubble video{ max-width:180px; }
+    .msg-wrap{ max-width:85%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="screen active" id="landing">
+  <div class="logo">Link<span>Chat</span></div>
+  <div class="tagline">Private, direct, and secure communication</div>
+
+  <div id="conn-info-box" class="conn-info" style="display:none">
+    <h3>Share Room Link</h3>
+    <div class="link-row">
+      <div class="link-text" id="share-link-text">—</div>
+      <button class="copy-btn" onclick="copyLink()">Copy</button>
+    </div>
+    <p style="font-size:.72rem;color:var(--text-muted);margin-top:.5rem">Waiting for participant to connect...</p>
+  </div>
+
+  <div class="card">
+    <h2>Create or open your private room</h2>
+    <p>Use the same room code every time to keep a permanent private chat link.</p>
+
+    <div class="mini-settings">
+      <input type="text" id="room-title-input" placeholder="Room title">
+      <input type="text" id="room-code-input" placeholder="Permanent room code">
+      <input type="text" id="my-name-input" placeholder="Your name">
+      <input type="text" id="their-name-input" placeholder="Participant name (optional)">
+    </div>
+
+    <button class="btn btn-primary" onclick="createRoom()">Open Room</button>
+
+    <div class="divider"><span>or</span></div>
+
+    <h2>Join a room</h2>
+    <p>Paste a room link or enter the same room code.</p>
+    <div class="input-row">
+      <input type="text" id="join-input" placeholder="Paste link or room code..." />
+      <button class="btn btn-primary" style="width:auto;padding:.75rem 1.25rem" onclick="joinRoom()">Join</button>
+    </div>
+
+    <div style="margin-top:1rem">
+      <button class="btn btn-outline" onclick="toggleTheme()">Toggle Dark Mode</button>
+    </div>
+  </div>
+</div>
+
+<div id="chat">
+  <div class="chat-header">
+    <div class="avatar">LC</div>
+    <div>
+      <div class="chat-name" id="room-title">Private Room <span class="status-dot off" id="conn-dot"></span></div>
+      <div style="font-size:.72rem;color:var(--text-muted)" id="conn-status">Waiting for connection...</div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" title="Theme" onclick="toggleTheme()">Theme</button>
+      <button class="icon-btn" title="Room info" onclick="showRoomInfo()">Info</button>
+      <button class="icon-btn" title="Clear chat" onclick="clearChat()">Clear</button>
+    </div>
+  </div>
+
+  <div class="messages" id="messages">
+    <div class="system-msg">Messages are encrypted and sent directly between devices.</div>
+    <div class="empty-state" id="empty-state">Start the conversation</div>
+
+    <div class="typing-indicator" id="typing-indicator">
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <button class="attach-btn" onclick="document.getElementById('file-input').click()" title="Send media">Attach</button>
+    <input type="file" id="file-input" accept="image/*,video/*" onchange="sendFile(this)">
+    <textarea class="msg-input" id="msg-input" placeholder="Type a message..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this);sendTyping()"></textarea>
+    <button class="send-btn" id="send-btn" onclick="sendMsg()" disabled>
+      <svg viewBox="0 0 24 24"><path d="M2 12L22 2 12 22 10 13z"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<div class="notif-banner" id="notif-banner"></div>
+
+<script>
+let peer = null;
+let conn = null;
+let myId = null;
+let typingTimer = null;
+let isConnected = false;
+let typingActive = false;
+
+let roomTitle = "Private Room";
+let roomCode = "";
+let myName = "Participant 1";
+let theirName = "Participant 2";
+let roomSecret = "";
+let lastDateLabel = "";
+let seenMessages = new Set();
+let deliveredMessages = new Set();
+
+function notify(msg){
+  const b = document.getElementById('notif-banner');
+  b.textContent = msg;
+  b.classList.add('show');
+  setTimeout(()=>b.classList.remove('show'),2500);
+}
+
+function roomIdFromUrl(){
+  const params = new URLSearchParams(window.location.search);
+  return params.get('r');
+}
+
+function getRoomUrl(id){
+  const params = new URLSearchParams();
+  params.set('r', id);
+  if(roomTitle) params.set('t', encodeURIComponent(roomTitle));
+  if(myName) params.set('n', encodeURIComponent(myName));
+  return location.origin + location.pathname + '?' + params.toString();
+}
+
+function sanitizeRoomCode(code){
+  return code.trim().replace(/\s+/g, '').replace(/[^a-zA-Z0-9_-]/g, '');
+}
+
+function generateSecretFromRoom(id){
+  return 'linkchat-' + id + '-private';
+}
+
+function updateRoomHeader(){
+  document.getElementById('room-title').innerHTML = `${escapeHtml(roomTitle)} <span class="status-dot ${isConnected ? '' : 'off'}" id="conn-dot"></span>`;
+}
+
+function setEmptyStateVisibility(){
+  const msgs = [...document.querySelectorAll('.msg-wrap, .date-divider')];
+  document.getElementById('empty-state').style.display = msgs.length ? 'none' : 'block';
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function formatTime(ts = Date.now()){
+  return new Date(ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+function formatDateLabel(date){
+  const today = new Date();
+  const d = new Date(date);
+  const sameDay = today.toDateString() === d.toDateString();
+
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate()-1);
+  const isYesterday = yesterday.toDateString() === d.toDateString();
+
+  if(sameDay) return "Today";
+  if(isYesterday) return "Yesterday";
+  return d.toLocaleDateString([], {day:'numeric', month:'short', year:'numeric'});
+}
+
+function maybeInsertDateDivider(ts){
+  const label = formatDateLabel(ts);
+  if(label !== lastDateLabel){
+    lastDateLabel = label;
+    const div = document.createElement('div');
+    div.className = 'date-divider';
+    div.textContent = label;
+    document.getElementById('messages').insertBefore(div, document.getElementById('typing-indicator'));
+  }
+}
+
+function autoResize(el){
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight,100) + 'px';
+}
+
+function handleKey(e){
+  if(e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    sendMsg();
+  }
+}
+
+function scrollBottom(){
+  const m = document.getElementById('messages');
+  m.scrollTop = m.scrollHeight;
+}
+
+function openLightbox(src){
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox(){
+  document.getElementById('lightbox').classList.remove('open');
+}
+
+function toggleTheme(){
+  document.body.classList.toggle('dark');
+  localStorage.setItem('linkchat_theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+}
+
+function loadTheme(){
+  if(localStorage.getItem('linkchat_theme') === 'dark'){
+    document.body.classList.add('dark');
+  }
+}
+
+function updateStatus(on){
+  isConnected = on;
+  const dot = document.getElementById('conn-dot');
+  if(dot) dot.className = 'status-dot' + (on ? '' : ' off');
+  document.getElementById('conn-status').textContent = on ? 'Connected securely' : 'Waiting for connection...';
+  document.getElementById('send-btn').disabled = !on;
+}
+
+function showTyping(){
+  document.getElementById('typing-indicator').classList.add('visible');
+  scrollBottom();
+}
+function hideTyping(){
+  document.getElementById('typing-indicator').classList.remove('visible');
+}
+
+function getStorageKey(){
+  return 'linkchat_room_' + (roomIdFromUrl() || roomCode || myId || 'local');
+}
+
+function saveChatMeta(){
+  localStorage.setItem(getStorageKey() + '_meta', JSON.stringify({
+    roomTitle, roomCode, myName, theirName
+  }));
+}
+
+function loadChatMeta(){
+  const raw = localStorage.getItem(getStorageKey() + '_meta');
+  if(!raw) return;
+  try{
+    const meta = JSON.parse(raw);
+    roomTitle = meta.roomTitle || roomTitle;
+    roomCode = meta.roomCode || roomCode;
+    myName = meta.myName || myName;
+    theirName = meta.theirName || theirName;
+    updateRoomHeader();
+  }catch(e){}
+}
+
+function saveMessage(msg){
+  const key = getStorageKey();
+  const msgs = JSON.parse(localStorage.getItem(key) || '[]');
+  msgs.push(msg);
+  localStorage.setItem(key, JSON.stringify(msgs));
+}
+
+function loadMessages(){
+  const key = getStorageKey();
+  const msgs = JSON.parse(localStorage.getItem(key) || '[]');
+  if(!msgs.length) return;
+
+  msgs.forEach(m=>{
+    appendMsg(m.content, m.side, m.kind, m.time, m.id, false, m.status || 'sent');
+  });
+}
+
+function updateStoredMessageStatus(id, status){
+  const key = getStorageKey();
+  const msgs = JSON.parse(localStorage.getItem(key) || '[]');
+  const index = msgs.findIndex(m => m.id === id);
+  if(index !== -1){
+    msgs[index].status = status;
+    localStorage.setItem(key, JSON.stringify(msgs));
+  }
+}
+
+function clearChat(){
+  if(!confirm("Clear this chat on your device?")) return;
+  localStorage.removeItem(getStorageKey());
+  localStorage.removeItem(getStorageKey() + '_meta');
+  document.querySelectorAll('.msg-wrap, .date-divider').forEach(el=>el.remove());
+  lastDateLabel = "";
+  setEmptyStateVisibility();
+  notify("Chat cleared");
+}
+
+async function getCryptoKey(secret){
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
+  );
+
+  return crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: enc.encode("linkchat-salt"),
+      iterations: 100000,
+      hash: "SHA-256"
+    },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+async function encryptPayload(obj){
+  const key = await getCryptoKey(roomSecret);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = new TextEncoder();
+  const encoded = enc.encode(JSON.stringify(obj));
+
+  const cipher = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    encoded
+  );
+
+  return {
+    iv: Array.from(iv),
+    data: Array.from(new Uint8Array(cipher))
+  };
+}
+
+async function decryptPayload(payload){
+  const key = await getCryptoKey(roomSecret);
+  const iv = new Uint8Array(payload.iv);
+  const data = new Uint8Array(payload.data);
+
+  const plain = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    key,
+    data
+  );
+
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+function initPeer(id = null){
+  peer = new Peer(id, { debug: 0 });
+
+  peer.on('open', pid => {
+    myId = pid;
+    roomSecret = generateSecretFromRoom(roomIdFromUrl() || roomCode || pid);
+
+    if(!roomIdFromUrl()){
+      document.getElementById('share-link-text').textContent = getRoomUrl(pid);
+      document.getElementById('conn-info-box').style.display = 'block';
+    }
+
+    peer.on('connection', c => {
+      if (conn && conn.open) {
+        c.on('open', () => {
+          try {
+            c.close();
+          } catch(e) {}
+        });
+        return;
+      }
+      setupConn(c);
+    });
+  });
+
+  peer.on('error', e => {
+    notify('Connection error: ' + e.type);
+    console.error(e);
+  });
+}
+
+function createRoom(){
+  roomTitle = document.getElementById('room-title-input').value.trim() || "Private Room";
+  roomCode = sanitizeRoomCode(document.getElementById('room-code-input').value.trim());
+  myName = document.getElementById('my-name-input').value.trim() || "Participant 1";
+  theirName = document.getElementById('their-name-input').value.trim() || "Participant 2";
+
+  if(!roomCode){
+    notify("Please enter a permanent room code");
+    return;
+  }
+
+  saveChatMeta();
+  updateRoomHeader();
+
+  initPeer(roomCode);
+
+  setTimeout(()=>{
+    document.getElementById('conn-info-box').style.display = 'block';
+    document.getElementById('share-link-text').textContent = getRoomUrl(roomCode);
+  },800);
+}
+
+function joinRoom(){
+  let val = document.getElementById('join-input').value.trim();
+  if(!val){
+    notify('Please enter a link or code');
+    return;
+  }
+
+  let targetId = val;
+  try{
+    const u = new URL(val);
+    targetId = u.searchParams.get('r') || val;
+
+    const t = u.searchParams.get('t');
+    const n = u.searchParams.get('n');
+
+    if(t) roomTitle = decodeURIComponent(t);
+    if(n) theirName = decodeURIComponent(n);
+  }catch(e){}
+
+  targetId = sanitizeRoomCode(targetId);
+
+  if(!targetId){
+    notify('Invalid room code');
+    return;
+  }
+
+  roomCode = targetId;
+  myName = document.getElementById('my-name-input').value.trim() || "Participant 1";
+
+  updateRoomHeader();
+  saveChatMeta();
+
+  initPeer(null);
+
+  peer.on('open', ()=>{
+    roomSecret = generateSecretFromRoom(targetId);
+    const c = peer.connect(targetId, { reliable:true, serialization:'raw' });
+    setupConn(c);
+  });
+}
+
+function setupConn(c){
+  conn = c;
+
+  conn.on('open', async ()=>{
+    updateStatus(true);
+    openChat();
+    appendSystem('Connected successfully.');
+
+    await sendEncrypted({
+      type:'intro',
+      roomTitle,
+      myName
+    });
+  });
+
+  conn.on('data', async raw => {
+    await handleIncoming(raw);
+  });
+
+  conn.on('close', ()=>{
+    updateStatus(false);
+    appendSystem('Participant disconnected.');
+  });
+
+  conn.on('error', e => {
+    notify('Error: ' + e);
+    console.error(e);
+  });
+}
+
+function openChat(){
+  document.getElementById('landing').classList.remove('active');
+  document.getElementById('chat').classList.add('active');
+  updateRoomHeader();
+  loadChatMeta();
+  if(!document.body.dataset.messagesLoaded){
+    loadMessages();
+    document.body.dataset.messagesLoaded = "true";
+  }
+  document.getElementById('msg-input').focus();
+  setEmptyStateVisibility();
+}
+
+async function sendEncrypted(obj){
+  if(conn && conn.open){
+    const encrypted = await encryptPayload(obj);
+    conn.send(JSON.stringify(encrypted));
+  }
+}
+
+function generateMsgId(){
+  return 'm_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+}
+
+async function sendTyping(){
+  if(!conn || !isConnected) return;
+
+  if(!typingActive){
+    typingActive = true;
+    await sendEncrypted({ type:'typing', val:true });
+  }
+
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(async ()=>{
+    typingActive = false;
+    await sendEncrypted({ type:'typing', val:false });
+  },1200);
+}
+
+async function sendMsg(){
+  const inp = document.getElementById('msg-input');
+  const text = inp.value.trim();
+  if(!text) return;
+  if(!isConnected){
+    notify('Not connected yet');
+    return;
+  }
+
+  const id = generateMsgId();
+  const ts = Date.now();
+
+  await sendEncrypted({
+    type:'text',
+    id,
+    text,
+    ts
+  });
+
+  appendMsg(text, 'me', 'text', ts, id, true, 'sent');
+
+  inp.value = '';
+  inp.style.height = 'auto';
+}
+
+async function sendFile(input){
+  const file = input.files[0];
+  if(!file || !isConnected){
+    if(!isConnected) notify('Not connected yet');
+    return;
+  }
+
+  if(file.size > 15 * 1024 * 1024){
+    notify('File too large (max 15 MB)');
+    input.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const isVid = file.type.startsWith('video');
+    const id = generateMsgId();
+    const ts = Date.now();
+
+    await sendEncrypted({
+      type:'media',
+      id,
+      mime:file.type,
+      data:e.target.result,
+      isVid,
+      ts
+    });
+
+    appendMsg(e.target.result, 'me', isVid ? 'video' : 'image', ts, id, true, 'sent');
+  };
+
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+async function handleIncoming(raw){
+  let payload;
+  try{
+    payload = JSON.parse(raw);
+    payload = await decryptPayload(payload);
+  }catch(e){
+    console.warn("Failed to decrypt message", e);
+    return;
+  }
+
+  if(payload.type === 'intro'){
+    if(payload.roomTitle) roomTitle = payload.roomTitle;
+    if(payload.myName) theirName = payload.myName;
+    updateRoomHeader();
+    saveChatMeta();
+    appendSystem(`${theirName} joined the room.`);
+  }
+
+  else if(payload.type === 'text'){
+    appendMsg(payload.text, 'them', 'text', payload.ts || Date.now(), payload.id, true);
+    hideTyping();
+
+    await sendEncrypted({ type:'delivered', id: payload.id });
+    await sendEncrypted({ type:'seen', id: payload.id });
+  }
+
+  else if(payload.type === 'media'){
+    appendMsg(payload.data, 'them', payload.isVid ? 'video' : 'image', payload.ts || Date.now(), payload.id, true);
+    hideTyping();
+
+    await sendEncrypted({ type:'delivered', id: payload.id });
+    await sendEncrypted({ type:'seen', id: payload.id });
+  }
+
+  else if(payload.type === 'typing'){
+    payload.val ? showTyping() : hideTyping();
+  }
+
+  else if(payload.type === 'delivered'){
+    deliveredMessages.add(payload.id);
+    updateMessageStatus(payload.id, 'delivered');
+  }
+
+  else if(payload.type === 'seen'){
+    seenMessages.add(payload.id);
+    updateMessageStatus(payload.id, 'seen');
+  }
+}
+
+function getStatusSymbol(status){
+  if(status === 'seen') return 'Seen';
+  if(status === 'delivered') return 'Delivered';
+  return 'Sent';
+}
+
+function appendMsg(content, side, kind, ts = Date.now(), id = generateMsgId(), save = true, status = 'sent'){
+  maybeInsertDateDivider(ts);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-wrap ' + side;
+  wrap.dataset.id = id;
+
+  const bub = document.createElement('div');
+  bub.className = 'bubble';
+
+  if(kind === 'text'){
+    bub.textContent = content;
+  }
+  else if(kind === 'image'){
+    const img = document.createElement('img');
+    img.src = content;
+    img.loading = 'lazy';
+    img.onclick = ()=>openLightbox(content);
+    bub.appendChild(img);
+  }
+  else if(kind === 'video'){
+    const vid = document.createElement('video');
+    vid.src = content;
+    vid.controls = true;
+    bub.appendChild(vid);
+  }
+
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
+
+  const time = document.createElement('span');
+  time.textContent = formatTime(ts);
+
+  meta.appendChild(time);
+
+  if(side === 'me'){
+    const st = document.createElement('span');
+    st.className = 'msg-status';
+    st.dataset.statusFor = id;
+    st.textContent = getStatusSymbol(status);
+    meta.appendChild(st);
+  }
+
+  wrap.appendChild(bub);
+  wrap.appendChild(meta);
+
+  document.getElementById('messages').insertBefore(wrap, document.getElementById('typing-indicator'));
+  scrollBottom();
+  setEmptyStateVisibility();
+
+  if(save){
+    saveMessage({ content, side, kind, time: ts, id, status });
+  }
+}
+
+function updateMessageStatus(id, status){
+  const el = document.querySelector(`[data-status-for="${id}"]`);
+  if(el){
+    el.textContent = getStatusSymbol(status);
+  }
+  updateStoredMessageStatus(id, status);
+}
+
+function appendSystem(msg){
+  const d = document.createElement('div');
+  d.className = 'system-msg';
+  d.textContent = msg;
+  document.getElementById('messages').insertBefore(d, document.getElementById('typing-indicator'));
+  scrollBottom();
+}
+
+function copyLink(){
+  const url = getRoomUrl(roomCode || myId);
+  navigator.clipboard.writeText(url).then(()=>{
+    notify('Link copied');
+  }).catch(()=>{
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    notify('Link copied');
+  });
+}
+
+function showRoomInfo(){
+  if(roomCode || myId){
+    notify(`Room: ${roomTitle} | Code: ${roomCode || myId}`);
+  }
+}
+
+window.onload = ()=>{
+  loadTheme();
+
+  const rid = roomIdFromUrl();
+  const params = new URLSearchParams(window.location.search);
+
+  if(params.get('t')) roomTitle = decodeURIComponent(params.get('t'));
+  if(params.get('n')) theirName = decodeURIComponent(params.get('n'));
+
+  updateRoomHeader();
+
+  if(rid){
+    document.getElementById('join-input').value = rid;
+    setTimeout(()=>joinRoom(),300);
+  }
+};
+</script>
+</body>
+</html>
